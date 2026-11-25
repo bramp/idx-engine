@@ -96,17 +96,32 @@ def test_pre_sale_purchase_within_30_days_and_substantially_identical_dual_class
     assert goog_lot.cost_basis_total == Decimal("6100")  # $5,000 + $1,100
 
 
-def test_partial_sale_of_single_lot_does_not_wash_against_its_own_remainder() -> None:
+def test_partial_sale_matches_eligible_shares_remaining_in_same_lot() -> None:
     resolver = WashSaleResolver()
     ledger = LotLedger(initial_cash=Decimal("50000"))
     resolver.attach(ledger)
 
-    # Single purchase of 100 shares, sell 40 shares 10 days later at a loss -> NOT a wash sale
-    ledger.buy(date(2023, 3, 1), "AMZN", "Consumer", Decimal("100"), Decimal("100"))
+    # The 60 retained shares were acquired within the wash window and replace the 40 sold shares.
+    original_lot, _ = ledger.buy(
+        date(2023, 3, 1), "AMZN", "Consumer", Decimal("100"), Decimal("100")
+    )
     closed, _ = ledger.sell(date(2023, 3, 11), "AMZN", Decimal("40"), Decimal("90"))
     assert closed[0].raw_realized_gain_loss == Decimal("-400")
-    assert closed[0].disallowed_wash_loss == Decimal("0")
-    assert closed[0].adjusted_realized_gain_loss == Decimal("-400")
+    assert closed[0].disallowed_wash_loss == Decimal("400")
+    assert closed[0].adjusted_realized_gain_loss == Decimal("0")
+
+    matched_lot = ledger.get_lot(original_lot.lot_id)
+    assert matched_lot is not None
+    assert matched_lot.quantity == Decimal("40")
+    assert matched_lot.cost_basis_total == Decimal("4400")
+    assert matched_lot.wash_sale_disallowed == Decimal("400")
+
+    remainder_lot = next(
+        lot for lot in ledger.open_lots("AMZN") if lot.lot_id != matched_lot.lot_id
+    )
+    assert remainder_lot.quantity == Decimal("20")
+    assert remainder_lot.cost_basis_total == Decimal("2000")
+    assert remainder_lot.wash_sale_disallowed == Decimal("0")
 
 
 def test_repurchase_on_day_31_is_outside_wash_window() -> None:

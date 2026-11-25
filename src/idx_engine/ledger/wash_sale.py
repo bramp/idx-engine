@@ -29,8 +29,6 @@ class WashSaleResolver:
     - Each replacement share can disallow a loss at most once (`single-use`).
     - Partial replacement quantities split the replacement lot so basis rollover and
       §1223(3) holding-period tacking apply strictly to the matched shares.
-    - Remaining shares from the exact same original acquisition lot do not trigger a wash
-      sale when part of that single purchase is sold at a loss.
     """
 
     def __init__(
@@ -215,7 +213,6 @@ class WashSaleResolver:
         if closed.raw_realized_gain_loss >= ZERO:
             return
 
-        sold_root_id = ledger.root_lot_id(closed.source_lot_id)
         unmatched_loss_qty = closed.quantity - self._matched_qty_for_closed(ledger, close_id)
         if unmatched_loss_qty <= ZERO:
             return
@@ -225,8 +222,7 @@ class WashSaleResolver:
         for grp_ticker in self.group_members(closed.ticker):
             for lot in ledger.open_lots(grp_ticker):
                 if (
-                    ledger.root_lot_id(lot.lot_id) != sold_root_id
-                    and not ledger.is_lot_wash_matched(lot.lot_id)
+                    not ledger.is_lot_wash_matched(lot.lot_id)
                     and self._is_within_window(closed.sold_date, self._actual_buy_date(lot))
                 ):
                     candidates.append(lot)
