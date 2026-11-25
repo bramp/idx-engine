@@ -1,9 +1,5 @@
 # idx-engine: Direct Indexing Simulator, Statistical Backtester & Web/CLI Workbench
 
-> **Repository initialization in progress:** This README describes the full
-> working project. Some application components are not yet checked in while
-> they await review, so a fresh clone may not support all workflows below.
-
 Deterministic tax-lot-backed S&P 500 direct indexing simulator, statistical path/sweep evaluator, and interactive FastAPI + React workbench designed to test direct indexing against low-cost S&P 500 ETFs (`VOO` / `SPY`) across historical windows, rolling slices, and cross-sectional block-bootstrap paths.
 
 ---
