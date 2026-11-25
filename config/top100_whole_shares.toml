@@ -1,0 +1,48 @@
+# Stratified top-100 direct indexing constrained to whole shares
+save_equity_curves = true
+save_lot_details = true
+
+[dataset]
+dataset_id = "sp500_synthetic_demo"
+version = "latest"
+
+[path]
+mode = "rolling_window"
+horizon_days = 756
+step_days = 63
+block_size_days = 21
+num_paths = 25
+seed = 42
+
+[strategy]
+name = "top100_whole_shares_tlh"
+strategy_type = "direct_index"
+sample_size = 100
+allow_fractional = false
+tlh_enabled = true
+tlh_loss_pct_threshold = "0.06"
+tlh_min_loss_dollars = "300"
+tlh_check_frequency_days = 5
+substitute_mode = "sector_peer"
+rebalance_mode = "drift_band"
+drift_band_abs = "0.015"
+direct_expense_ratio_bps = "15"
+etf_expense_ratio_bps = "3"
+lot_policy = "HIFO"
+
+[tax]
+fed_st_rate = "0.37"
+fed_lt_rate = "0.20"
+niit_rate = "0.038"
+state_st_rate = "0.093"
+state_lt_rate = "0.093"
+ordinary_income_offset_cap = "3000"
+external_st_gains_annual = "0"
+external_lt_gains_annual = "15000"
+tax_settlement_mode = "reinvest_and_pay_from_portfolio"
+liquidate_at_end = true
+
+[cashflow]
+initial_capital = "250000"
+periodic_contribution = "0"
+contribution_frequency_days = 21

@@ -1,0 +1,41 @@
+# Baseline S&P 500 ETF comparison (no TLH direct indexing)
+save_equity_curves = true
+save_lot_details = true
+
+[dataset]
+dataset_id = "sp500_synthetic_demo"
+version = "latest"
+
+[path]
+mode = "historical"
+horizon_days = 1260
+step_days = 21
+block_size_days = 21
+num_paths = 1
+seed = 42
+
+[strategy]
+name = "direct_index_no_tlh"
+strategy_type = "direct_index"
+allow_fractional = true
+tlh_enabled = false
+rebalance_mode = "quarterly"
+etf_expense_ratio_bps = "3"
+lot_policy = "HIFO"
+
+[tax]
+fed_st_rate = "0.37"
+fed_lt_rate = "0.20"
+niit_rate = "0.038"
+state_st_rate = "0.093"
+state_lt_rate = "0.093"
+ordinary_income_offset_cap = "3000"
+external_st_gains_annual = "0"
+external_lt_gains_annual = "0"
+tax_settlement_mode = "reinvest_and_pay_from_portfolio"
+liquidate_at_end = true
+
+[cashflow]
+initial_capital = "250000"
+periodic_contribution = "2500"
+contribution_frequency_days = 21

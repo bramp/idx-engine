@@ -1,0 +1,56 @@
+# Multi-parameter sensitivity sweep across TLH thresholds, sample sizes, and share rounding
+name = "tlh_threshold_and_sample_sweep"
+walk_forward_split_ratio = 0.7
+
+[base]
+save_equity_curves = false
+save_lot_details = false
+
+[base.dataset]
+dataset_id = "sp500_synthetic_demo"
+version = "latest"
+
+[base.path]
+mode = "block_bootstrap"
+horizon_days = 756
+step_days = 21
+block_size_days = 21
+num_paths = 20
+seed = 42
+
+[base.strategy]
+name = "sweep_direct_index"
+strategy_type = "direct_index"
+sample_size = 50
+allow_fractional = true
+tlh_enabled = true
+tlh_loss_pct_threshold = "0.05"
+tlh_min_loss_dollars = "250"
+tlh_check_frequency_days = 5
+substitute_mode = "sector_peer"
+rebalance_mode = "quarterly"
+direct_expense_ratio_bps = "10"
+etf_expense_ratio_bps = "3"
+lot_policy = "HIFO"
+
+[base.tax]
+fed_st_rate = "0.37"
+fed_lt_rate = "0.20"
+niit_rate = "0.038"
+state_st_rate = "0.093"
+state_lt_rate = "0.093"
+ordinary_income_offset_cap = "3000"
+external_st_gains_annual = "5000"
+external_lt_gains_annual = "15000"
+tax_settlement_mode = "reinvest_and_pay_from_portfolio"
+liquidate_at_end = true
+
+[base.cashflow]
+initial_capital = "250000"
+periodic_contribution = "0"
+contribution_frequency_days = 21
+
+[grid]
+"strategy.tlh_loss_pct_threshold" = ["0.03", "0.05", "0.08"]
+"strategy.sample_size" = [20, 50]
+"strategy.allow_fractional" = [true, false]
