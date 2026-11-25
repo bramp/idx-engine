@@ -1,11 +1,14 @@
 # idx-engine Makefile
 
-.PHONY: all install format format-check analyze test test-ci fix upgrade clean web-install web-build
+.PHONY: all install format format-check analyze hooks test test-ci fix upgrade clean web-install web-build
 
 all: format-check analyze test
 
 install:
 	uv sync --locked
+
+hooks:
+	uvx pre-commit install
 
 format:
 	uv run ruff format src tests

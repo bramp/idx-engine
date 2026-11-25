@@ -285,6 +285,9 @@ Opening `http://127.0.0.1:8000` provides three integrated tabs backed by FastAPI
 Standard targets are provided via [`Makefile`](./Makefile):
 
 ```bash
+# Install git pre-commit hooks (ruff format + lint on every commit)
+make hooks
+
 # Run format check, ruff + strict mypy analysis, and pytest
 make all
 
