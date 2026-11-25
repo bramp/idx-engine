@@ -15,6 +15,27 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Check formatting
+        run: make format-check
+
+      - name: Lint and typecheck
+        run: make analyze
+
   test:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
@@ -34,8 +55,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
 
-      - name: Run checks and tests
-        run: make test-ci
+      - name: Run tests
+        run: uv run pytest -v
 
   web:
     name: Web Build
