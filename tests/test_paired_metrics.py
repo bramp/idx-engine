@@ -157,7 +157,15 @@ def test_full_basket_tracks_index_tightly_and_tlh_with_external_gains_adds_liqui
     )
     assert all(lot["reason"] == "tax_settlement" for lot in bench_lots)
     assert len(bench_lots) <= 4
-    assert res_etf_nav.comparisons[0].benchmark_outcome.wash_sale_count == 0
+    washed_lots = [lot for lot in bench_lots if lot["disallowed_wash_loss"] > 0]
+    assert len(washed_lots) == 1
+    assert washed_lots[0]["raw_realized_gain_loss"] < 0
+    assert 0 < washed_lots[0]["disallowed_wash_loss"] < -washed_lots[0]["raw_realized_gain_loss"]
+    benchmark = res_etf_nav.comparisons[0].benchmark_outcome
+    assert benchmark.wash_sale_count == 1
+    assert benchmark.disallowed_wash_sale_losses == Decimal(
+        str(washed_lots[0]["disallowed_wash_loss"])
+    ).quantize(Decimal("0.01"))
 
     # Deterministic replay produces identical run_id and median_paired_wealth_delta
     res_replay = execute_and_persist_run(store, no_tlh_cfg)
