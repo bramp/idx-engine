@@ -326,11 +326,7 @@ class DataStore:
         versions = [p.name for p in ds_dir.iterdir() if p.is_dir()]
         if not versions:
             return "v1"
-        nums = [
-            int(v[1:])
-            for v in versions
-            if v.startswith("v") and v[1:].isdigit()
-        ]
+        nums = [int(v[1:]) for v in versions if v.startswith("v") and v[1:].isdigit()]
         next_num = (max(nums) + 1) if nums else (len(versions) + 1)
         return f"v{next_num}"
 

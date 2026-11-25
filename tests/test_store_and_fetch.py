@@ -227,10 +227,18 @@ def test_datasets_discovered_from_disk_survive_rename_and_db_wipe(tmp_path: Path
 
     store = DataStore(data_dir=tmp_path / "data")
     generate_synthetic_sp500_dataset(
-        store, dataset_id="disk_ds", start_date=date(2023, 1, 2), trading_days=20, max_constituents=5
+        store,
+        dataset_id="disk_ds",
+        start_date=date(2023, 1, 2),
+        trading_days=20,
+        max_constituents=5,
     )
     generate_synthetic_sp500_dataset(
-        store, dataset_id="disk_ds", start_date=date(2023, 1, 2), trading_days=30, max_constituents=5
+        store,
+        dataset_id="disk_ds",
+        start_date=date(2023, 1, 2),
+        trading_days=30,
+        max_constituents=5,
     )
 
     # Delete v1, rename v2 -> v1, and wipe app.duckdb completely.
