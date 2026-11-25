@@ -35,8 +35,12 @@ requested ranges again, or `--retry-missing-prices` to retry symbols previously
 recorded as having no Yahoo history.
 
 Dataset versions are **write-once**. `save_dataset` refuses to overwrite an
-existing `v<N>` directory. Configs that ask for `version = "latest"` resolve
-to the version with the newest `created_at_iso` in `app.duckdb`.
+existing `v<N>` directory. Dataset discovery reads `metadata.json` directly
+from `data/parquet/<dataset_id>/<version>/` on demand (taking `dataset_id` and
+`version` from the directory path), and `version = "latest"` resolves to the
+version with the newest `created_at_iso`. You can safely delete or rename
+version folders on disk, or delete `app.duckdb` to clear run history, without
+desynchronizing your datasets.
 
 Only this README is tracked in git; everything else here is regenerable and is
 git-ignored. The Parquet folders and `app.duckdb` must stay in sync, so
@@ -61,7 +65,7 @@ separately in `etf.parquet`, not as a ticker column.
 | `etf.parquet` | `date, close, return, dividend` | Benchmark ETF (default `VOO`): close price, daily price return (excluding dividends), and cash dividend per share on the ex-date. No expense ratio is deducted here; `EtfBaselineStrategy` applies the fee explicitly. |
 | `sectors.parquet` | `ticker, sector, name` | One row per ticker with its GICS sector (used for sector-stratified sampling and wash-sale substitutes) and company name. The sector is a single static value for the whole history. |
 | `corporate_actions.parquet` | one row per action | `action_id, effective_date, action_type, ticker, ratio_numerator, ratio_denominator, cash_amount_per_share, qualified_fraction, target_ticker, target_sector, basis_allocation_fraction`. Decimal fields are stored as strings. The engine applies each action to the tax-lot ledger on `effective_date`. For example, a `split` of 4/1 multiplies the share count and divides the per-share basis. |
-| `metadata.json` | object | `dataset_id, version, source, created_at_iso, start_date, end_date, trading_days, ticker_count, benchmark_ticker, survivorship_biased, missing_bar_fraction, notes`. The same values are mirrored in the `datasets` table of `app.duckdb`. |
+| `metadata.json` | object | `dataset_id, version, source, created_at_iso, start_date, end_date, trading_days, ticker_count, benchmark_ticker, survivorship_biased, missing_bar_fraction, notes`. Source of truth for dataset discovery (`idx-fetch list`, `DataStore.load_dataset`). |
 
 Every row is a trading date. There is no row for weekends or market holidays
 (the synthetic dataset also skips weekends, but not holidays).
@@ -166,12 +170,11 @@ Limitations of the importer:
 
 ## `app.duckdb`
 
-DuckDB catalog plus the results store. Open it with
+DuckDB results store for simulation runs, tax lots, and sweeps. Open it with
 `duckdb data/app.duckdb` or `DataStore(...)`.
 
 | Table | One row per | Purpose |
 |---|---|---|
-| `datasets` | dataset version | Same fields as `metadata.json` plus `parquet_path`. Read by `idx-fetch list`. |
 | `runs` | simulation run | Config JSON, summary JSON, validation status, and the dataset/version used. |
 | `path_outcomes` | run × path | Per-path direct vs. benchmark results and paired deltas. |
 | `equity_band_points` | run × day | P10–P90 equity and wealth-delta bands used by the fan charts. |
@@ -179,8 +182,8 @@ DuckDB catalog plus the results store. Open it with
 | `wash_sales` | wash-sale adjustment | Loss lot, replacement lot, and the disallowed loss carried into the replacement's basis. |
 | `sweeps` / `sweep_rows` | sweep / sweep × param set | Parameter-sweep configs and in-sample/out-of-sample summaries. |
 
-Deleting `app.duckdb` loses all run history. The Parquet datasets stay on
-disk, but they won't be listed until they are re-registered (or re-fetched).
+Deleting `app.duckdb` clears run/sweep history while leaving all Parquet
+datasets under `data/parquet/` intact and immediately discoverable.
 
 ## Getting point-in-time (survivorship-free) S&P 500 data
 

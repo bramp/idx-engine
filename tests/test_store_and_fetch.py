@@ -220,3 +220,31 @@ def test_import_local_dataset_normalizes_dot_tickers_across_all_files(tmp_path: 
     assert abs(ds.weights_df["AAPL"][0] + ds.weights_df["BRK-B"][0] - 1.0) < 1e-9
     assert ds.dividends_df["BRK-B"][1] == 1.5
     assert ds.sectors["BRK-B"] == "Financials"
+
+
+def test_datasets_discovered_from_disk_survive_rename_and_db_wipe(tmp_path: Path) -> None:
+    import shutil
+
+    store = DataStore(data_dir=tmp_path / "data")
+    generate_synthetic_sp500_dataset(
+        store, dataset_id="disk_ds", start_date=date(2023, 1, 2), trading_days=20, max_constituents=5
+    )
+    generate_synthetic_sp500_dataset(
+        store, dataset_id="disk_ds", start_date=date(2023, 1, 2), trading_days=30, max_constituents=5
+    )
+
+    # Delete v1, rename v2 -> v1, and wipe app.duckdb completely.
+    shutil.rmtree(store.parquet_dir / "disk_ds" / "v1")
+    (store.parquet_dir / "disk_ds" / "v2").rename(store.parquet_dir / "disk_ds" / "v1")
+    store.db_path.unlink()
+
+    fresh_store = DataStore(data_dir=tmp_path / "data")
+    listed = fresh_store.list_datasets()
+    assert len(listed) == 1
+    assert listed[0].dataset_id == "disk_ds"
+    assert listed[0].version == "v1"
+    assert listed[0].trading_days == 30
+
+    loaded = fresh_store.load_dataset("disk_ds", version="latest")
+    assert loaded.metadata.version == "v1"
+    assert loaded.metadata.trading_days == 30

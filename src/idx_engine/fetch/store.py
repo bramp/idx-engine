@@ -184,23 +184,6 @@ class DataStore:
         with self._connect(read_only=False) as con:
             con.execute(
                 """
-                CREATE TABLE IF NOT EXISTS datasets (
-                    dataset_id VARCHAR NOT NULL,
-                    version VARCHAR NOT NULL,
-                    source VARCHAR NOT NULL,
-                    created_at_iso VARCHAR NOT NULL,
-                    start_date DATE NOT NULL,
-                    end_date DATE NOT NULL,
-                    trading_days INTEGER NOT NULL,
-                    ticker_count INTEGER NOT NULL,
-                    benchmark_ticker VARCHAR NOT NULL,
-                    survivorship_biased BOOLEAN NOT NULL,
-                    missing_bar_fraction DOUBLE NOT NULL,
-                    notes VARCHAR NOT NULL,
-                    parquet_path VARCHAR NOT NULL,
-                    PRIMARY KEY (dataset_id, version)
-                );
-
                 CREATE TABLE IF NOT EXISTS runs (
                     run_id VARCHAR PRIMARY KEY,
                     created_at_iso VARCHAR NOT NULL,
@@ -305,41 +288,76 @@ class DataStore:
                 """
             )
 
+    @staticmethod
+    def _version_sort_key(version: str) -> tuple[int, str]:
+        if version.startswith("v") and version[1:].isdigit():
+            return (int(version[1:]), version)
+        return (-1, version)
+
+    @staticmethod
+    def _read_dataset_metadata(version_dir: Path) -> DatasetMetadata | None:
+        meta_path = version_dir / "metadata.json"
+        if not meta_path.is_file():
+            return None
+        try:
+            raw = json.loads(meta_path.read_text(encoding="utf-8"))
+            return DatasetMetadata(
+                dataset_id=version_dir.parent.name,
+                version=version_dir.name,
+                source=str(raw["source"]),
+                created_at_iso=str(raw["created_at_iso"]),
+                start_date=date.fromisoformat(str(raw["start_date"])),
+                end_date=date.fromisoformat(str(raw["end_date"])),
+                trading_days=int(raw["trading_days"]),
+                ticker_count=int(raw["ticker_count"]),
+                benchmark_ticker=str(raw["benchmark_ticker"]),
+                survivorship_biased=bool(raw["survivorship_biased"]),
+                missing_bar_fraction=float(raw["missing_bar_fraction"]),
+                notes=str(raw.get("notes", "")),
+            )
+        except (OSError, KeyError, TypeError, ValueError):
+            return None
+
     def next_dataset_version(self, dataset_id: str) -> str:
-        with self._connect(read_only=True) as con:
-            rows = con.execute(
-                "SELECT version FROM datasets WHERE dataset_id = ? ORDER BY created_at_iso ASC",
-                [dataset_id],
-            ).fetchall()
-        if not rows:
+        validate_safe_identifier(dataset_id, "dataset_id")
+        ds_dir = self.parquet_dir / dataset_id
+        if not ds_dir.is_dir():
+            return "v1"
+        versions = [p.name for p in ds_dir.iterdir() if p.is_dir()]
+        if not versions:
             return "v1"
         nums = [
-            int(r[0][1:])
-            for r in rows
-            if isinstance(r[0], str) and r[0].startswith("v") and r[0][1:].isdigit()
+            int(v[1:])
+            for v in versions
+            if v.startswith("v") and v[1:].isdigit()
         ]
-        next_num = (max(nums) + 1) if nums else (len(rows) + 1)
+        next_num = (max(nums) + 1) if nums else (len(versions) + 1)
         return f"v{next_num}"
 
     def resolve_dataset_version(self, dataset_id: str, version: str = "latest") -> str:
         validate_safe_identifier(dataset_id, "dataset_id")
-        with self._connect(read_only=True) as con:
-            if version == "latest":
-                row = con.execute(
-                    "SELECT version FROM datasets WHERE dataset_id = ? ORDER BY created_at_iso DESC LIMIT 1",
-                    [dataset_id],
-                ).fetchone()
-            else:
-                validate_safe_identifier(version, "version")
-                row = con.execute(
-                    "SELECT version FROM datasets WHERE dataset_id = ? AND version = ? LIMIT 1",
-                    [dataset_id, version],
-                ).fetchone()
-        if row is None:
-            if version == "latest":
+        ds_dir = self.parquet_dir / dataset_id
+        if version == "latest":
+            candidates: list[DatasetMetadata] = []
+            if ds_dir.is_dir():
+                for vdir in ds_dir.iterdir():
+                    if not vdir.is_dir():
+                        continue
+                    meta = self._read_dataset_metadata(vdir)
+                    if meta is not None:
+                        candidates.append(meta)
+            if not candidates:
                 raise KeyError(f"Dataset '{dataset_id}' not found in store")
+            candidates.sort(
+                key=lambda m: (m.created_at_iso, self._version_sort_key(m.version)),
+                reverse=True,
+            )
+            return candidates[0].version
+
+        validate_safe_identifier(version, "version")
+        if self._read_dataset_metadata(ds_dir / version) is None:
             raise KeyError(f"Dataset '{dataset_id}@{version}' not found in store")
-        return str(row[0])
+        return version
 
     def run_exists(self, run_id: str) -> bool:
         with self._connect(read_only=True) as con:
@@ -450,67 +468,37 @@ class DataStore:
                 missing_bar_fraction=float(missing_bar_fraction),
                 notes=notes,
             )
-            (target_dir / "metadata.json").write_text(
-                dumps_canonical(asdict(meta)), encoding="utf-8"
-            )
             for fname, text in (extra_files or {}).items():
                 validate_safe_identifier(fname, "extra_file_name")
                 (target_dir / fname).write_text(text, encoding="utf-8")
 
-            with self._connect(read_only=False, transactional=True) as con:
-                con.execute(
-                    """
-                    INSERT INTO datasets VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    [
-                        meta.dataset_id,
-                        meta.version,
-                        meta.source,
-                        meta.created_at_iso,
-                        meta.start_date,
-                        meta.end_date,
-                        meta.trading_days,
-                        meta.ticker_count,
-                        meta.benchmark_ticker,
-                        meta.survivorship_biased,
-                        meta.missing_bar_fraction,
-                        meta.notes,
-                        str(target_dir),
-                    ],
-                )
+            # Write metadata.json atomically last so incomplete directories are never discovered.
+            meta_tmp = target_dir / "metadata.json.part"
+            meta_tmp.write_text(dumps_canonical(asdict(meta)), encoding="utf-8")
+            meta_tmp.replace(target_dir / "metadata.json")
             return meta
         except Exception:
             shutil.rmtree(target_dir, ignore_errors=True)
             raise
 
     def list_datasets(self) -> list[DatasetMetadata]:
-        with self._connect(read_only=True) as con:
-            rows = con.execute(
-                """
-                SELECT dataset_id, version, source, created_at_iso, start_date, end_date,
-                       trading_days, ticker_count, benchmark_ticker, survivorship_biased,
-                       missing_bar_fraction, notes
-                FROM datasets
-                ORDER BY created_at_iso DESC
-                """
-            ).fetchall()
-        return [
-            DatasetMetadata(
-                dataset_id=r[0],
-                version=r[1],
-                source=r[2],
-                created_at_iso=r[3],
-                start_date=r[4],
-                end_date=r[5],
-                trading_days=int(r[6]),
-                ticker_count=int(r[7]),
-                benchmark_ticker=r[8],
-                survivorship_biased=bool(r[9]),
-                missing_bar_fraction=float(r[10]),
-                notes=r[11],
-            )
-            for r in rows
-        ]
+        datasets: list[DatasetMetadata] = []
+        if not self.parquet_dir.is_dir():
+            return datasets
+        for ds_dir in self.parquet_dir.iterdir():
+            if not ds_dir.is_dir():
+                continue
+            for vdir in ds_dir.iterdir():
+                if not vdir.is_dir():
+                    continue
+                meta = self._read_dataset_metadata(vdir)
+                if meta is not None:
+                    datasets.append(meta)
+        datasets.sort(
+            key=lambda m: (m.created_at_iso, self._version_sort_key(m.version), m.dataset_id),
+            reverse=True,
+        )
+        return datasets
 
     def load_dataset(
         self,
@@ -520,35 +508,10 @@ class DataStore:
         end_date: date | None = None,
     ) -> MarketDataset:
         resolved = self.resolve_dataset_version(dataset_id, version)
-        with self._connect(read_only=True) as con:
-            row = con.execute(
-                """
-                SELECT dataset_id, version, source, created_at_iso, start_date, end_date,
-                       trading_days, ticker_count, benchmark_ticker, survivorship_biased,
-                       missing_bar_fraction, notes, parquet_path
-                FROM datasets
-                WHERE dataset_id = ? AND version = ?
-                """,
-                [dataset_id, resolved],
-            ).fetchone()
-        if row is None:
+        pdir = self.parquet_dir / dataset_id / resolved
+        meta = self._read_dataset_metadata(pdir)
+        if meta is None:
             raise KeyError(f"Dataset '{dataset_id}@{resolved}' not found")
-
-        pdir = Path(row[12])
-        meta = DatasetMetadata(
-            dataset_id=row[0],
-            version=row[1],
-            source=row[2],
-            created_at_iso=row[3],
-            start_date=row[4],
-            end_date=row[5],
-            trading_days=int(row[6]),
-            ticker_count=int(row[7]),
-            benchmark_ticker=row[8],
-            survivorship_biased=bool(row[9]),
-            missing_bar_fraction=float(row[10]),
-            notes=row[11],
-        )
 
         prices_df = pl.read_parquet(pdir / "prices.parquet")
         returns_df = pl.read_parquet(pdir / "returns.parquet")
