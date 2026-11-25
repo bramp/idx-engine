@@ -6,6 +6,7 @@ import csv
 import json
 from datetime import date
 from pathlib import Path
+from typing import Annotated
 
 import typer
 import uvicorn
@@ -42,12 +43,12 @@ ui_app = typer.Typer(
 
 @fetch_app.command("synthetic")
 def fetch_synthetic(
-    dataset_id: str = typer.Option("sp500_synthetic_demo", help="Dataset identifier."),
-    start_date: str = typer.Option("2019-01-02", help="Start date (YYYY-MM-DD)."),
-    trading_days: int = typer.Option(1260, help="Number of trading days (~252/yr)."),
-    max_constituents: int | None = typer.Option(None, help="Cap constituent count."),
-    seed: int = typer.Option(12345, help="Deterministic RNG seed."),
-    data_dir: Path = typer.Option(Path("data"), help="Local data store directory."),
+    dataset_id: Annotated[str, typer.Option(help="Dataset identifier.")] = "sp500_synthetic_demo",
+    start_date: Annotated[str, typer.Option(help="Start date (YYYY-MM-DD).")] = "2019-01-02",
+    trading_days: Annotated[int, typer.Option(help="Number of trading days (~252/yr).")] = 1260,
+    max_constituents: Annotated[int | None, typer.Option(help="Cap constituent count.")] = None,
+    seed: Annotated[int, typer.Option(help="Deterministic RNG seed.")] = 12345,
+    data_dir: Annotated[Path, typer.Option(help="Local data store directory.")] = Path("data"),
 ) -> None:
     """Generate a deterministic multi-sector point-in-time synthetic S&P 500 dataset."""
     store = DataStore(data_dir=data_dir)
@@ -68,56 +69,71 @@ def fetch_synthetic(
 
 @fetch_app.command("pull")
 def fetch_pull(
-    source: str = typer.Option(
-        "public",
-        help="Data provider: 'public' (fja05680 + yfinance) or 'sharadar' (api.sharadar.com).",
-    ),
-    dataset_id: str | None = typer.Option(
-        None,
-        help="Dataset identifier (default: 'sp500_public' or 'sp500_sharadar').",
-    ),
-    start_date: str = typer.Option("2019-01-01", help="Start date (YYYY-MM-DD)."),
-    end_date: str = typer.Option("2024-12-31", help="End date (YYYY-MM-DD)."),
-    max_constituents: int | None = typer.Option(
-        None,
-        help="Debug only: cap constituent count (excludes later additions).",
-    ),
-    benchmark: str | None = typer.Option(
-        None,
-        help="Paired S&P 500 ETF symbol (default: VOO for public, SPY for sharadar).",
-    ),
-    spy_weights: bool = typer.Option(
-        True, help="[public] Weight by annual SPY holdings snapshots (else equal-weight proxy)."
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        envvar="SHARADAR_API_KEY",
-        help="[sharadar] API key (or set SHARADAR_API_KEY; 'test-api-key' uses free sample).",
-    ),
-    tickers: str | None = typer.Option(
-        None,
-        help="[sharadar] Optional comma-separated ticker subset (e.g. AAPL,MSFT,NVDA for test key).",
-    ),
-    refresh_reference_data: bool = typer.Option(
-        False, help="Re-download cached membership/weight/action files in data/raw/."
-    ),
-    refresh_prices: bool = typer.Option(
-        False, help="Re-download price history even when it is already cached."
-    ),
-    retry_missing_prices: bool = typer.Option(
-        False, help="[public] Retry symbols previously cached with no price data."
-    ),
-    data_dir: Path = typer.Option(Path("data"), help="Local data store directory."),
+    source: Annotated[
+        str,
+        typer.Option(
+            help="Data provider: 'public' (fja05680 + yfinance) or 'sharadar' (api.sharadar.com)."
+        ),
+    ] = "public",
+    dataset_id: Annotated[
+        str | None,
+        typer.Option(help="Dataset identifier (default: 'sp500_public' or 'sp500_sharadar')."),
+    ] = None,
+    start_date: Annotated[str, typer.Option(help="Start date (YYYY-MM-DD).")] = "2019-01-01",
+    end_date: Annotated[
+        str | None, typer.Option(help="End date (YYYY-MM-DD; default: today).")
+    ] = None,
+    max_constituents: Annotated[
+        int | None,
+        typer.Option(help="Debug only: cap constituent count (excludes later additions)."),
+    ] = None,
+    benchmark: Annotated[
+        str | None,
+        typer.Option(help="Paired S&P 500 ETF symbol (default: VOO for public, SPY for sharadar)."),
+    ] = None,
+    spy_weights: Annotated[
+        bool,
+        typer.Option(
+            help="[public] Weight by annual SPY holdings snapshots (else equal-weight proxy)."
+        ),
+    ] = True,
+    api_key: Annotated[
+        str | None,
+        typer.Option(
+            envvar="SHARADAR_API_KEY",
+            help="[sharadar] API key (or set SHARADAR_API_KEY; 'test-api-key' uses free sample).",
+        ),
+    ] = None,
+    tickers: Annotated[
+        str | None,
+        typer.Option(
+            help="[sharadar] Optional comma-separated ticker subset (e.g. AAPL,MSFT,NVDA)."
+        ),
+    ] = None,
+    refresh_reference_data: Annotated[
+        bool,
+        typer.Option(help="Re-download cached membership/weight/action files in data/raw/."),
+    ] = False,
+    refresh_prices: Annotated[
+        bool,
+        typer.Option(help="Re-download price history even when it is already cached."),
+    ] = False,
+    retry_missing_prices: Annotated[
+        bool,
+        typer.Option(help="[public] Retry symbols previously cached with no price data."),
+    ] = False,
+    data_dir: Annotated[Path, typer.Option(help="Local data store directory.")] = Path("data"),
 ) -> None:
     """Build a point-in-time S&P 500 dataset from public sources or Sharadar."""
     store = DataStore(data_dir=data_dir)
+    resolved_end = date.fromisoformat(end_date) if end_date else date.today()
     provider = source.strip().lower()
     if provider == "public":
         meta = fetch_yfinance_dataset(
             store=store,
             dataset_id=dataset_id or "sp500_public",
             start_date=date.fromisoformat(start_date),
-            end_date=date.fromisoformat(end_date),
+            end_date=resolved_end,
             max_constituents=max_constituents,
             benchmark_ticker=benchmark or "VOO",
             use_spy_weights=spy_weights,
@@ -131,7 +147,7 @@ def fetch_pull(
             store=store,
             dataset_id=dataset_id or "sp500_sharadar",
             start_date=date.fromisoformat(start_date),
-            end_date=date.fromisoformat(end_date),
+            end_date=resolved_end,
             benchmark_ticker=benchmark or "SPY",
             api_key=api_key,
             tickers=ticker_list,
@@ -153,16 +169,19 @@ def fetch_pull(
 
 @fetch_app.command("import")
 def fetch_import(
-    dataset_id: str = typer.Option(..., help="Target dataset ID."),
-    prices: Path = typer.Option(..., exists=True, help="CSV/Parquet wide prices file."),
-    weights: Path = typer.Option(..., exists=True, help="CSV/Parquet weights file."),
-    etf: Path = typer.Option(..., exists=True, help="CSV/Parquet benchmark ETF file."),
-    dividends: Path | None = typer.Option(None, help="Optional CSV/Parquet dividends file."),
-    survivorship_biased: bool = typer.Option(
-        False, help="Mark True if dataset lacks delisted point-in-time constituents."
-    ),
-    benchmark: str = typer.Option("VOO", help="Benchmark ETF symbol."),
-    data_dir: Path = typer.Option(Path("data"), help="Local data store directory."),
+    dataset_id: Annotated[str, typer.Option(help="Target dataset ID.")],
+    prices: Annotated[Path, typer.Option(exists=True, help="CSV/Parquet wide prices file.")],
+    weights: Annotated[Path, typer.Option(exists=True, help="CSV/Parquet weights file.")],
+    etf: Annotated[Path, typer.Option(exists=True, help="CSV/Parquet benchmark ETF file.")],
+    dividends: Annotated[
+        Path | None, typer.Option(help="Optional CSV/Parquet dividends file.")
+    ] = None,
+    survivorship_biased: Annotated[
+        bool,
+        typer.Option(help="Mark True if dataset lacks delisted point-in-time constituents."),
+    ] = False,
+    benchmark: Annotated[str, typer.Option(help="Benchmark ETF symbol.")] = "VOO",
+    data_dir: Annotated[Path, typer.Option(help="Local data store directory.")] = Path("data"),
 ) -> None:
     """Import local CSV/Parquet point-in-time market & weight files."""
     store = DataStore(data_dir=data_dir)
@@ -184,7 +203,7 @@ def fetch_import(
 
 @fetch_app.command("list")
 def fetch_list(
-    data_dir: Path = typer.Option(Path("data"), help="Local data store directory."),
+    data_dir: Annotated[Path, typer.Option(help="Local data store directory.")] = Path("data"),
 ) -> None:
     """List cached dataset snapshots in DuckDB."""
     store = DataStore(data_dir=data_dir)
@@ -223,8 +242,10 @@ def _ensure_demo_dataset_if_needed(store: DataStore, dataset_id: str) -> None:
 
 @sim_app.command("run")
 def sim_run(
-    config: Path = typer.Argument(..., exists=True, help="Path to SimulationRunConfig TOML file."),
-    data_dir: Path = typer.Option(Path("data"), help="Local data store directory."),
+    config: Annotated[
+        Path, typer.Argument(exists=True, help="Path to SimulationRunConfig TOML file.")
+    ],
+    data_dir: Annotated[Path, typer.Option(help="Local data store directory.")] = Path("data"),
 ) -> None:
     """Execute a paired simulation run from a TOML configuration and print distributional metrics."""
     store = DataStore(data_dir=data_dir)
@@ -273,8 +294,8 @@ def sim_run(
 
 @sim_app.command("sweep")
 def sim_sweep(
-    config: Path = typer.Argument(..., exists=True, help="Path to SweepConfig TOML file."),
-    data_dir: Path = typer.Option(Path("data"), help="Local data store directory."),
+    config: Annotated[Path, typer.Argument(exists=True, help="Path to SweepConfig TOML file.")],
+    data_dir: Annotated[Path, typer.Option(help="Local data store directory.")] = Path("data"),
 ) -> None:
     """Execute a multi-parameter sensitivity sweep (and optional walk-forward OOS check)."""
     store = DataStore(data_dir=data_dir)
@@ -310,9 +331,7 @@ def sim_sweep(
         ]
         if res.walk_forward_split_ratio is not None:
             oos_s = row.out_of_sample_summary
-            cols.append(
-                f"{oos_s.win_rate_vs_benchmark_liquidation * 100:.1f}%" if oos_s else "-"
-            )
+            cols.append(f"{oos_s.win_rate_vs_benchmark_liquidation * 100:.1f}%" if oos_s else "-")
             cols.append(f"${oos_s.median_paired_wealth_delta:,.2f}" if oos_s else "-")
         table.add_row(*cols)
     console.print(table)
@@ -320,10 +339,10 @@ def sim_sweep(
 
 @sim_app.command("export-lots")
 def sim_export_lots(
-    run_id: str = typer.Argument(..., help="Run ID to export closed lots from."),
-    output: Path = typer.Option(..., help="Destination .csv or .json file."),
-    path_id: str | None = typer.Option(None, help="Optional path_id filter."),
-    data_dir: Path = typer.Option(Path("data"), help="Local data store directory."),
+    run_id: Annotated[str, typer.Argument(help="Run ID to export closed lots from.")],
+    output: Annotated[Path, typer.Option(help="Destination .csv or .json file.")],
+    path_id: Annotated[str | None, typer.Option(help="Optional path_id filter.")] = None,
+    data_dir: Annotated[Path, typer.Option(help="Local data store directory.")] = Path("data"),
 ) -> None:
     """Export closed tax lots for a simulation run to CSV or JSON."""
     store = DataStore(data_dir=data_dir)
@@ -341,10 +360,10 @@ def sim_export_lots(
 
 @ui_app.callback(invoke_without_command=True)
 def launch_ui(
-    host: str = typer.Option("127.0.0.1", help="Bind host."),
-    port: int = typer.Option(8000, help="Bind port."),
-    data_dir: Path = typer.Option(Path("data"), help="Local data store directory."),
-    reload: bool = typer.Option(False, help="Enable uvicorn auto-reload."),
+    host: Annotated[str, typer.Option(help="Bind host.")] = "127.0.0.1",
+    port: Annotated[int, typer.Option(help="Bind port.")] = 8000,
+    data_dir: Annotated[Path, typer.Option(help="Local data store directory.")] = Path("data"),
+    reload: Annotated[bool, typer.Option(help="Enable uvicorn auto-reload.")] = False,
 ) -> None:
     """Start the FastAPI backend (and serve built React Web UI if present)."""
     import os

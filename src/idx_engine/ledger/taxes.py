@@ -125,9 +125,7 @@ class TaxAccountant:
         self.cfg = cfg
         self.st_carryforward: Decimal = ZERO
         self.lt_carryforward: Decimal = ZERO
-        self._year_state: dict[
-            int, tuple[Decimal, Decimal, Decimal, Decimal, Decimal]
-        ] = {}
+        self._year_state: dict[int, tuple[Decimal, Decimal, Decimal, Decimal, Decimal]] = {}
         self.settled_years: set[int] = set()
         self.annual_summaries: list[AnnualTaxSummary] = []
         self.cumulative_net_portfolio_tax_paid: Decimal = ZERO

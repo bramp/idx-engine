@@ -30,7 +30,7 @@ def fetch_yfinance_dataset(
     store: DataStore,
     dataset_id: str = "sp500_public",
     start_date: date = date(2019, 1, 1),
-    end_date: date = date(2024, 12, 31),
+    end_date: date | None = None,
     max_constituents: int | None = None,
     benchmark_ticker: str = "VOO",
     use_spy_weights: bool = True,
@@ -51,6 +51,7 @@ def fetch_yfinance_dataset(
 
     Every data gap is written to `errors.txt` in the dataset directory.
     """
+    end_date = end_date or date.today()
     ref_dir = store.raw_dir
     issues: list[str] = []
 
@@ -117,10 +118,14 @@ def fetch_yfinance_dataset(
             "dataset is survivorship-limited."
         )
 
-    all_symbols = sorted(set(universe + [benchmark_ticker] + list(SECTOR_ETFS.values())))
+    all_symbols = sorted({*universe, benchmark_ticker, *SECTOR_ETFS.values()})
     price_cache = YahooPriceCache(ref_dir / "yfinance")
     cache_stats = price_cache.ensure(
-        all_symbols, start_date, end_date, refresh=refresh_prices, retry_missing=retry_missing_prices
+        all_symbols,
+        start_date,
+        end_date,
+        refresh=refresh_prices,
+        retry_missing=retry_missing_prices,
     )
     if cache_stats.not_cached:
         issues.append(
@@ -223,7 +228,8 @@ def fetch_yfinance_dataset(
     anchor_w: dict[date | None, np.ndarray] = {}
     anchor_px_idx: dict[date | None, int] = {}
     universe_anchor_w: dict[date | None, dict[str, float]] = {}
-    for a in anchor_keys or [None]:
+    anchor_candidates: list[date | None] = list(anchor_keys) if anchor_keys else [None]
+    for a in anchor_candidates:
         snap = spy_by_snap.get(a, {}) if a else {}
         median_w = float(np.median(list(snap.values()))) if snap else 1.0
         universe_anchor_w[a] = {t: snap.get(t, median_w) for t in universe}
@@ -232,7 +238,9 @@ def fetch_yfinance_dataset(
 
     universe_set = set(universe)
     for s_date, a in sorted({(s, a) for s, a in zip(snap_for_day, anchor_for_day, strict=True)}):
-        snap = spy_by_snap.get(a, {}) if a else {}
+        if a is None:
+            continue
+        snap = spy_by_snap.get(a, {})
         if not snap:
             continue
         for t in sorted((members_by_snap[s_date] & universe_set) - snap.keys()):
@@ -254,9 +262,7 @@ def fetch_yfinance_dataset(
         w = universe_anchor_w[a]
         members = members_by_snap[s] & set(universe)
         tot = sum(w[t] for t in members)
-        lost = sum(
-            w[t] for t in members if t not in tok_pos or not covered[i, tok_pos[t]]
-        )
+        lost = sum(w[t] for t in members if t not in tok_pos or not covered[i, tok_pos[t]])
         lost_share[i] = lost / tot if tot > 0 else 0.0
 
     etf_c = etf_c.copy()
@@ -300,7 +306,11 @@ def fetch_yfinance_dataset(
         f"Generated {datetime.now(UTC).isoformat(timespec='seconds')}",
         f"Window {idx_dates[0]}..{idx_dates[-1]} ({n_days} trading days), benchmark {benchmark_ticker}",
         "Sources: membership fja05680/sp500; prices/dividends/splits yfinance; weights "
-        + ("annual SPY holdings (Kaggle, Sept 30 snapshots)" if spy_weights is not None else "equal-weight proxy"),
+        + (
+            "annual SPY holdings (Kaggle, Sept 30 snapshots)"
+            if spy_weights is not None
+            else "equal-weight proxy"
+        ),
         f"Price cache {price_cache.dir}: {cache_stats.from_cache} symbols served from cache, "
         f"{cache_stats.fetched} (partly) downloaded, {cache_stats.rebased} re-downloaded after a split",
         "",
@@ -340,10 +350,7 @@ def fetch_yfinance_dataset(
         f"NO SPY WEIGHT ({len(no_spy_weight)}) - member not matched in that year's SPY snapshot",
         "(added mid-year, or since acquired: the Kaggle source relabels acquired companies",
         "with the acquirer's ticker). Assigned the snapshot's median weight.",
-        *[
-            f"  {t:<8} {','.join(str(y) for y in yrs)}"
-            for t, yrs in sorted(no_spy_weight.items())
-        ],
+        *[f"  {t:<8} {','.join(str(y) for y in yrs)}" for t, yrs in sorted(no_spy_weight.items())],
         "",
         f"UNKNOWN SECTOR ({len(unknown_sector)}) - not a current member; GICS sector unknown.",
         *[f"  {t}" for t in unknown_sector],
@@ -434,7 +441,9 @@ def fetch_yfinance_dataset(
     ).with_columns(pl.col("date").cast(pl.Date))
 
     survivorship_biased = bool(no_data or partial or max_constituents is not None)
-    source_label = "yfinance+fja05680_pit" + ("+spy_annual_weights" if spy_weights is not None else "")
+    source_label = "yfinance+fja05680_pit" + (
+        "+spy_annual_weights" if spy_weights is not None else ""
+    )
     return store.save_dataset(
         dataset_id=dataset_id,
         source=source_label,

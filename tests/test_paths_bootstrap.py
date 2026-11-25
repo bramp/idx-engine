@@ -66,7 +66,9 @@ def test_rolling_window_and_deterministic_block_bootstrap(tmp_path: Path) -> Non
 
 def test_rolling_window_raises_when_dataset_too_short(tmp_path: Path) -> None:
     store = DataStore(data_dir=tmp_path / "data")
-    generate_synthetic_sp500_dataset(store, dataset_id="short_ds", trading_days=50, max_constituents=5)
+    generate_synthetic_sp500_dataset(
+        store, dataset_id="short_ds", trading_days=50, max_constituents=5
+    )
     ds = store.load_dataset("short_ds")
     with pytest.raises(ValueError, match="fewer than rolling_window"):
         generate_paths(ds, PathSpec(mode="rolling_window", horizon_days=100))

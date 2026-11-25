@@ -15,11 +15,13 @@ router = APIRouter(tags=["runs"])
 
 
 def _get_store(request: Request) -> DataStore:
-    return request.app.state.store
+    store: DataStore = request.app.state.store
+    return store
 
 
 def _get_jobs(request: Request) -> JobCoordinator:
-    return request.app.state.jobs
+    jobs: JobCoordinator = request.app.state.jobs
+    return jobs
 
 
 def _compute_notable_paths(paths: list[dict[str, Any]]) -> dict[str, str | None]:
@@ -28,7 +30,7 @@ def _compute_notable_paths(paths: list[dict[str, Any]]) -> dict[str, str | None]
     by_delta = sorted(paths, key=lambda p: (p["paired_liquidation_delta"], p["path_id"]))
     n = len(by_delta)
     median_id = by_delta[n // 2]["path_id"]
-    p10_idx = max(0, min(n - 1, int(round(0.10 * (n - 1)))))
+    p10_idx = max(0, min(n - 1, round(0.10 * (n - 1))))
     p10_id = by_delta[p10_idx]["path_id"]
     by_te = sorted(paths, key=lambda p: (p["tracking_error_bps"], p["path_id"]), reverse=True)
     max_te_id = by_te[0]["path_id"]

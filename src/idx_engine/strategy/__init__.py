@@ -14,4 +14,3 @@ __all__ = [
     "compute_target_shares",
     "select_stratified_weights",
 ]
-

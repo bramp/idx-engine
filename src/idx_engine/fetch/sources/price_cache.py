@@ -105,7 +105,11 @@ class YahooPriceCache:
         except FileNotFoundError:
             return {}
         except (OSError, json.JSONDecodeError) as exc:
-            log.warning("Ignoring unreadable %s (%s); cached ranges will be re-fetched.", self._manifest_path, exc)
+            log.warning(
+                "Ignoring unreadable %s (%s); cached ranges will be re-fetched.",
+                self._manifest_path,
+                exc,
+            )
             return {}
         # Drop entries whose bar file has gone missing so they are fetched again.
         return {s: e for s, e in data.items() if e.get("rows", 0) == 0 or self._path(s).exists()}
@@ -152,7 +156,7 @@ class YahooPriceCache:
             return (
                 date.fromisoformat(str(e["start"])),
                 date.fromisoformat(str(e["end"])),
-                int(e["rows"]),
+                int(str(e["rows"])),
             )
         except (KeyError, TypeError, ValueError):
             self.manifest.pop(sym, None)
@@ -371,7 +375,9 @@ class YahooPriceCache:
         divs: dict[str, np.ndarray] = {}
         splits: dict[str, np.ndarray] = {}
         for sym, f in frames.items():
-            rows = np.fromiter((pos[d] for d in f["date"].to_list()), dtype=np.int64, count=f.height)
+            rows = np.fromiter(
+                (pos[d] for d in f["date"].to_list()), dtype=np.int64, count=f.height
+            )
             c = np.full(n, np.nan)
             c[rows] = f["close"].fill_null(np.nan).to_numpy()
             dv = np.zeros(n)

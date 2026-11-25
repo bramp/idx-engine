@@ -32,7 +32,11 @@ def load_weights_file(path: str | Path) -> tuple[pl.DataFrame, dict[str, str]]:
     from idx_engine.fetch.sources.http import normalize_ticker_expr, normalize_yahoo_ticker
 
     p = Path(path)
-    raw = pl.read_parquet(p) if p.suffix.lower() == ".parquet" else pl.read_csv(p, try_parse_dates=True)
+    raw = (
+        pl.read_parquet(p)
+        if p.suffix.lower() == ".parquet"
+        else pl.read_csv(p, try_parse_dates=True)
+    )
 
     sectors_map: dict[str, str] = {}
     if {"date", "ticker", "weight"}.issubset(set(raw.columns)):

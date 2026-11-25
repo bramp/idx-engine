@@ -112,7 +112,9 @@ class SharadarClient:
                 "https://sharadar.com/subscribe."
             )
         if resp.status_code == 403:
-            raise SharadarAccessError(f"Sharadar returned 403 Forbidden for {path}: {resp.text[:200]}")
+            raise SharadarAccessError(
+                f"Sharadar returned 403 Forbidden for {path}: {resp.text[:200]}"
+            )
         resp.raise_for_status()
         return resp
 
@@ -124,9 +126,16 @@ class SharadarClient:
         if not p.exists():
             return {}
         try:
-            return json.loads(p.read_text(encoding="utf-8"))
+            raw = json.loads(p.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             return {}
+        if not isinstance(raw, dict):
+            return {}
+        return {
+            str(k): {str(ek): str(ev) for ek, ev in v.items()}
+            for k, v in raw.items()
+            if isinstance(v, dict)
+        }
 
     def _save_manifest(self, manifest: dict[str, dict[str, str]]) -> None:
         p = self._manifest_path()
@@ -246,7 +255,9 @@ class SharadarClient:
                 df = self.fetch_bulk_table(table, years=years, refresh=refresh)
                 return df, "bulk"
             except SharadarAccessError:
-                log.info("Bulk download unavailable for %s; falling back to sliced REST queries.", table)
+                log.info(
+                    "Bulk download unavailable for %s; falling back to sliced REST queries.", table
+                )
 
         # Sliced query with local cache keyed by request parameters.
         slice_dir = self.cache_dir / "slices" / table
@@ -413,7 +424,7 @@ def fetch_sharadar_dataset(
     store: DataStore,
     dataset_id: str = "sp500_sharadar",
     start_date: date = date(2019, 1, 1),
-    end_date: date = date(2024, 12, 31),
+    end_date: date | None = None,
     benchmark_ticker: str = "SPY",
     api_key: str | None = None,
     tickers: Sequence[str] | None = None,
@@ -423,6 +434,7 @@ def fetch_sharadar_dataset(
     client: SharadarClient | None = None,
 ) -> DatasetMetadata:
     """Build a point-in-time S&P 500 dataset from the Sharadar direct API."""
+    end_date = end_date or date.today()
     resolved_key = api_key or os.environ.get(SHARADAR_API_KEY_ENV, "")
     sharadar = client or SharadarClient(
         api_key=resolved_key,
@@ -521,18 +533,15 @@ def fetch_sharadar_dataset(
         raise RuntimeError("Sharadar `stocks` returned no price rows for the requested universe.")
 
     universe_set = set(universe)
-    stocks_df = (
-        stocks_df.with_columns(
-            pl.col("ticker").cast(pl.String).str.strip_chars().str.to_uppercase(),
-            pl.col("date").cast(pl.String).str.slice(0, 10).str.to_date("%Y-%m-%d"),
-            pl.col("close").cast(pl.Float64),
-            pl.col("closeunadj").cast(pl.Float64),
-        )
-        .filter(
-            pl.col("ticker").is_in(list(universe_set))
-            & pl.col("date").is_in(idx_dates)
-            & pl.col("close").is_not_null()
-        )
+    stocks_df = stocks_df.with_columns(
+        pl.col("ticker").cast(pl.String).str.strip_chars().str.to_uppercase(),
+        pl.col("date").cast(pl.String).str.slice(0, 10).str.to_date("%Y-%m-%d"),
+        pl.col("close").cast(pl.Float64),
+        pl.col("closeunadj").cast(pl.Float64),
+    ).filter(
+        pl.col("ticker").is_in(list(universe_set))
+        & pl.col("date").is_in(idx_dates)
+        & pl.col("close").is_not_null()
     )
 
     present_tickers = set(stocks_df.get_column("ticker").unique().to_list())
@@ -608,17 +617,13 @@ def fetch_sharadar_dataset(
     raw_div_mat = np.zeros((n_days, n_tok), dtype=np.float64)
     corporate_actions: list[CorporateAction] = []
     if actions_df.height:
-        act = (
-            actions_df.select(
-                pl.col("date").cast(pl.String).str.slice(0, 10).str.to_date("%Y-%m-%d").alias("date"),
-                pl.col("action").cast(pl.String).str.strip_chars().str.to_lowercase().alias("action"),
-                pl.col("ticker").cast(pl.String).str.strip_chars().str.to_uppercase().alias("ticker"),
-                pl.col("value").cast(pl.Float64, strict=False).alias("value"),
-            )
-            .filter(
-                pl.col("ticker").is_in(valid_tickers)
-                & pl.col("date").is_between(start_date, end_date)
-            )
+        act = actions_df.select(
+            pl.col("date").cast(pl.String).str.slice(0, 10).str.to_date("%Y-%m-%d").alias("date"),
+            pl.col("action").cast(pl.String).str.strip_chars().str.to_lowercase().alias("action"),
+            pl.col("ticker").cast(pl.String).str.strip_chars().str.to_uppercase().alias("ticker"),
+            pl.col("value").cast(pl.Float64, strict=False).alias("value"),
+        ).filter(
+            pl.col("ticker").is_in(valid_tickers) & pl.col("date").is_between(start_date, end_date)
         )
         for d, action_kind, t, val in act.iter_rows():
             i = date_pos.get(d)
@@ -662,16 +667,13 @@ def fetch_sharadar_dataset(
             prefer_bulk=prefer_bulk,
         )
         if daily_df.height:
-            daily_clean = (
-                daily_df.select(
-                    pl.col("ticker").cast(pl.String).str.strip_chars().str.to_uppercase(),
-                    pl.col("date").cast(pl.String).str.slice(0, 10).str.to_date("%Y-%m-%d"),
-                    pl.col("marketcap").cast(pl.Float64, strict=False),
-                )
-                .filter(
-                    pl.col("ticker").is_in(valid_tickers)
-                    & pl.col("date").is_between(start_date, end_date)
-                )
+            daily_clean = daily_df.select(
+                pl.col("ticker").cast(pl.String).str.strip_chars().str.to_uppercase(),
+                pl.col("date").cast(pl.String).str.slice(0, 10).str.to_date("%Y-%m-%d"),
+                pl.col("marketcap").cast(pl.Float64, strict=False),
+            ).filter(
+                pl.col("ticker").is_in(valid_tickers)
+                & pl.col("date").is_between(start_date, end_date)
             )
             for t, d, mcap in daily_clean.iter_rows():
                 i = date_pos.get(d)
@@ -736,18 +738,15 @@ def fetch_sharadar_dataset(
             prefer_bulk=prefer_bulk,
         )
         if etf_act_df.height:
-            etf_act = (
-                etf_act_df.select(
-                    pl.col("date").cast(pl.String).str.slice(0, 10).str.to_date("%Y-%m-%d"),
-                    pl.col("action").cast(pl.String).str.strip_chars().str.to_lowercase(),
-                    pl.col("ticker").cast(pl.String).str.strip_chars().str.to_uppercase(),
-                    pl.col("value").cast(pl.Float64, strict=False),
-                )
-                .filter(
-                    (pl.col("ticker") == benchmark_ticker.upper())
-                    & (pl.col("action") == "dividend")
-                    & pl.col("date").is_between(start_date, end_date)
-                )
+            etf_act = etf_act_df.select(
+                pl.col("date").cast(pl.String).str.slice(0, 10).str.to_date("%Y-%m-%d"),
+                pl.col("action").cast(pl.String).str.strip_chars().str.to_lowercase(),
+                pl.col("ticker").cast(pl.String).str.strip_chars().str.to_uppercase(),
+                pl.col("value").cast(pl.Float64, strict=False),
+            ).filter(
+                (pl.col("ticker") == benchmark_ticker.upper())
+                & (pl.col("action") == "dividend")
+                & pl.col("date").is_between(start_date, end_date)
             )
             for d, _a, _t, val in etf_act.iter_rows():
                 i = date_pos.get(d)
@@ -837,7 +836,11 @@ def fetch_sharadar_dataset(
     if partial:
         lines += ["", f"PARTIAL PRICE COVERAGE ({len(partial)})", *partial]
     if unknown_sector:
-        lines += ["", f"UNKNOWN SECTOR ({len(unknown_sector)})", *[f"  {t}" for t in unknown_sector]]
+        lines += [
+            "",
+            f"UNKNOWN SECTOR ({len(unknown_sector)})",
+            *[f"  {t}" for t in unknown_sector],
+        ]
     lines.append("")
     report = "\n".join(lines)
 

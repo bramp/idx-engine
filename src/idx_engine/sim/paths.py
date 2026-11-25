@@ -41,7 +41,9 @@ def generate_paths(
     """Generate `SimulationPath` instances according to `spec.mode` with explicit dates/seeds."""
     n_total = len(dataset.trading_dates)
     if n_total < 2:
-        raise ValueError(f"Dataset '{dataset.metadata.dataset_id}' must have at least 2 trading days")
+        raise ValueError(
+            f"Dataset '{dataset.metadata.dataset_id}' must have at least 2 trading days"
+        )
 
     tickers = dataset.tickers
 
@@ -94,9 +96,7 @@ def generate_paths(
                 dataset.etf_df.slice(start_idx, horizon), ["return", "dividend"]
             )
             actions = tuple(
-                ca
-                for ca in dataset.corporate_actions
-                if dates[0] < ca.effective_date <= dates[-1]
+                ca for ca in dataset.corporate_actions if dates[0] < ca.effective_date <= dates[-1]
             )
             paths.append(
                 SimulationPath(
@@ -195,9 +195,7 @@ def generate_paths(
                 path_weights[0, :] = first_w if first_w.sum() > 0 else base_w_arr
                 path_weights[1:, :] = src_weights[idx_arr, :]
                 w_sums = path_weights.sum(axis=1, keepdims=True)
-                path_weights = np.where(
-                    w_sums > 0.0, path_weights / np.maximum(w_sums, 1e-12), 0.0
-                )
+                path_weights = np.where(w_sums > 0.0, path_weights / np.maximum(w_sums, 1e-12), 0.0)
             else:
                 # Evolve index cap weights smoothly along bootstrapped constituent returns
                 rel_growth = path_prices / np.maximum(path_prices[0:1, :], 1e-8)
@@ -209,8 +207,7 @@ def generate_paths(
             etf_dy = np.zeros(horizon, dtype=np.float64)
             if needed_return_days > 0:
                 etf_ret[1:] = (
-                    np.sum(lag_path_w[1:, :] * path_ret[1:, :], axis=1)
-                    + src_etf_ret_resid[idx_arr]
+                    np.sum(lag_path_w[1:, :] * path_ret[1:, :], axis=1) + src_etf_ret_resid[idx_arr]
                 )
                 etf_dy[1:] = np.maximum(
                     0.0,

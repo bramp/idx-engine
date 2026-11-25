@@ -120,16 +120,12 @@ def summarize_paired_distribution(
         [float(c.benchmark_outcome.after_tax_liquidation_wealth) for c in comparisons],
         dtype=np.float64,
     )
-    strat_cagrs = np.array(
-        [c.direct_outcome.after_tax_cagr for c in comparisons], dtype=np.float64
-    )
+    strat_cagrs = np.array([c.direct_outcome.after_tax_cagr for c in comparisons], dtype=np.float64)
     bench_cagrs = np.array(
         [c.benchmark_outcome.after_tax_cagr for c in comparisons], dtype=np.float64
     )
     te_bps = np.array([c.annualized_tracking_error_bps for c in comparisons], dtype=np.float64)
-    turnovers = np.array(
-        [c.direct_outcome.annual_turnover for c in comparisons], dtype=np.float64
-    )
+    turnovers = np.array([c.direct_outcome.annual_turnover for c in comparisons], dtype=np.float64)
     harv_losses = np.array(
         [float(c.direct_outcome.harvested_gross_losses) for c in comparisons], dtype=np.float64
     )

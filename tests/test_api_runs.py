@@ -3,6 +3,7 @@
 import time
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 from fastapi.testclient import TestClient
 
@@ -10,12 +11,12 @@ from idx_engine.api.main import create_app
 from idx_engine.fetch import DataStore, generate_synthetic_sp500_dataset
 
 
-def _wait_for_job(client: TestClient, job_id: str, timeout_s: float = 15.0) -> dict:
+def _wait_for_job(client: TestClient, job_id: str, timeout_s: float = 15.0) -> dict[str, Any]:
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         resp = client.get(f"/api/jobs/{job_id}")
         assert resp.status_code == 200
-        body = resp.json()
+        body: dict[str, Any] = resp.json()
         if body["status"] in ("completed", "failed"):
             return body
         time.sleep(0.05)

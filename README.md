@@ -282,13 +282,18 @@ Opening `http://127.0.0.1:8000` provides three integrated tabs backed by FastAPI
 
 ## Development & Testing
 
-```bash
-# Run Python unit, simulation, sweep, CLI, and FastAPI integration tests
-uv run pytest -v
+Standard targets are provided via [`Makefile`](./Makefile):
 
-# Lint Python source and tests
-uv run ruff check src tests
+```bash
+# Run format check, ruff + strict mypy analysis, and pytest
+make all
+
+# Format and auto-fix lint issues
+make fix
+
+# Run full CI check suite (ruff format --check, ruff check, mypy, pytest -v)
+make test-ci
 
 # Typecheck and build the React + TypeScript Web UI
-cd web && npm run build
+make web-build
 ```

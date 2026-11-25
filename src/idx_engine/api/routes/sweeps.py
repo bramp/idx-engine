@@ -15,11 +15,13 @@ router = APIRouter(prefix="/api/sweeps", tags=["sweeps"])
 
 
 def _get_store(request: Request) -> DataStore:
-    return request.app.state.store
+    store: DataStore = request.app.state.store
+    return store
 
 
 def _get_jobs(request: Request) -> JobCoordinator:
-    return request.app.state.jobs
+    jobs: JobCoordinator = request.app.state.jobs
+    return jobs
 
 
 @router.get("")

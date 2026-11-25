@@ -175,4 +175,3 @@ def test_wash_sale_scales_replacement_share_matching_across_stock_split_and_rena
     assert closed.disallowed_wash_loss == Decimal("1000")  # 25% of $4,000, NOT $4,000!
     assert closed.adjusted_realized_gain_loss == Decimal("-3000")
     assert repl.cost_basis_total == Decimal("2600")  # $1,600 + $1,000 rolled basis
-

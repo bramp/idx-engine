@@ -78,12 +78,8 @@ def test_holding_term_uses_calendar_anniversary() -> None:
     ledger = LotLedger(initial_cash=Decimal("1000"))
     ledger.buy(date(2023, 3, 1), "AAPL", "Tech", Decimal("2"), Decimal("100"))
 
-    anniversary_sale, _ = ledger.sell(
-        date(2024, 3, 1), "AAPL", Decimal("1"), Decimal("100")
-    )
-    after_anniversary_sale, _ = ledger.sell(
-        date(2024, 3, 2), "AAPL", Decimal("1"), Decimal("100")
-    )
+    anniversary_sale, _ = ledger.sell(date(2024, 3, 1), "AAPL", Decimal("1"), Decimal("100"))
+    after_anniversary_sale, _ = ledger.sell(date(2024, 3, 2), "AAPL", Decimal("1"), Decimal("100"))
 
     assert anniversary_sale[0].holding_days == 366
     assert anniversary_sale[0].term == "ST"
@@ -91,12 +87,8 @@ def test_holding_term_uses_calendar_anniversary() -> None:
 
     leap_day_ledger = LotLedger(initial_cash=Decimal("1000"))
     leap_day_ledger.buy(date(2024, 2, 29), "AAPL", "Tech", Decimal("2"), Decimal("100"))
-    february_sale, _ = leap_day_ledger.sell(
-        date(2025, 2, 28), "AAPL", Decimal("1"), Decimal("100")
-    )
-    march_sale, _ = leap_day_ledger.sell(
-        date(2025, 3, 1), "AAPL", Decimal("1"), Decimal("100")
-    )
+    february_sale, _ = leap_day_ledger.sell(date(2025, 2, 28), "AAPL", Decimal("1"), Decimal("100"))
+    march_sale, _ = leap_day_ledger.sell(date(2025, 3, 1), "AAPL", Decimal("1"), Decimal("100"))
 
     assert february_sale[0].term == "ST"
     assert march_sale[0].term == "LT"

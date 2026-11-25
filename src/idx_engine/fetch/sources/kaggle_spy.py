@@ -41,9 +41,7 @@ def load_spy_annual_weights(
         frames.append(
             pl.read_csv(f, infer_schema_length=0).select(
                 pl.lit(date(int(f.stem), 9, 30)).alias("as_of"),
-                pl.when(
-                    (pl.col("Ticker") == "GOOG") & pl.col("Company").str.contains("Class A")
-                )
+                pl.when((pl.col("Ticker") == "GOOG") & pl.col("Company").str.contains("Class A"))
                 .then(pl.lit("GOOGL"))
                 .otherwise(normalize_ticker_expr("Ticker"))
                 .alias("ticker"),

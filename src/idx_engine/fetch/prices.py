@@ -132,12 +132,18 @@ def import_local_dataset(
     etf_joined = common_dates.join(
         etf_raw.with_columns(pl.col("date").cast(pl.Date)), on="date", how="left"
     )
-    etf_close = etf_joined.get_column("close").cast(pl.Float64).to_numpy().astype(np.float64, copy=True)
+    etf_close = (
+        etf_joined.get_column("close").cast(pl.Float64).to_numpy().astype(np.float64, copy=True)
+    )
     for i in range(1, len(etf_close)):
-        if (np.isnan(etf_close[i]) or not np.isfinite(etf_close[i])) and np.isfinite(etf_close[i - 1]):
+        if (np.isnan(etf_close[i]) or not np.isfinite(etf_close[i])) and np.isfinite(
+            etf_close[i - 1]
+        ):
             etf_close[i] = etf_close[i - 1]
     for i in range(len(etf_close) - 2, -1, -1):
-        if (np.isnan(etf_close[i]) or not np.isfinite(etf_close[i])) and np.isfinite(etf_close[i + 1]):
+        if (np.isnan(etf_close[i]) or not np.isfinite(etf_close[i])) and np.isfinite(
+            etf_close[i + 1]
+        ):
             etf_close[i] = etf_close[i + 1]
     etf_close = np.nan_to_num(etf_close, nan=0.0, posinf=0.0, neginf=0.0)
 
@@ -151,9 +157,7 @@ def import_local_dataset(
     else:
         etf_ret = np.zeros_like(etf_close)
         with np.errstate(divide="ignore", invalid="ignore"):
-            etf_ret[1:] = np.where(
-                etf_close[:-1] > 0, etf_close[1:] / etf_close[:-1] - 1.0, 0.0
-            )
+            etf_ret[1:] = np.where(etf_close[:-1] > 0, etf_close[1:] / etf_close[:-1] - 1.0, 0.0)
     etf_div = (
         np.nan_to_num(
             etf_joined.get_column("dividend").cast(pl.Float64).fill_null(0.0).to_numpy(),

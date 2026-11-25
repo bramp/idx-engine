@@ -8,7 +8,7 @@ import shutil
 import threading
 import time
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from dataclasses import asdict, dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -84,9 +84,7 @@ class MarketDataset:
         if not dates:
             raise ValueError(f"Date slice [{s}, {e}] produced 0 trading days")
 
-        actions = tuple(
-            ca for ca in self.corporate_actions if s <= ca.effective_date <= e
-        )
+        actions = tuple(ca for ca in self.corporate_actions if s <= ca.effective_date <= e)
         sliced_meta = DatasetMetadata(
             dataset_id=self.metadata.dataset_id,
             version=self.metadata.version,
@@ -176,10 +174,8 @@ class DataStore:
                     con.commit()
             except Exception:
                 if transactional:
-                    try:
+                    with suppress(Exception):
                         con.rollback()
-                    except Exception:
-                        pass
                 raise
             finally:
                 con.close()
@@ -376,9 +372,7 @@ class DataStore:
         (e.g. an `errors.txt` data-quality report).
         """
         validate_safe_identifier(dataset_id, "dataset_id")
-        ver = validate_safe_identifier(
-            version or self.next_dataset_version(dataset_id), "version"
-        )
+        ver = validate_safe_identifier(version or self.next_dataset_version(dataset_id), "version")
         parquet_root = self.parquet_dir.resolve()
         target_dir = (parquet_root / dataset_id / ver).resolve()
         if not target_dir.is_relative_to(parquet_root):
@@ -564,10 +558,7 @@ class DataStore:
         sectors_df = pl.read_parquet(pdir / "sectors.parquet")
         ca_df = pl.read_parquet(pdir / "corporate_actions.parquet")
 
-        sectors = {
-            str(r["ticker"]): str(r["sector"])
-            for r in sectors_df.iter_rows(named=True)
-        }
+        sectors = {str(r["ticker"]): str(r["sector"]) for r in sectors_df.iter_rows(named=True)}
         names = {
             str(r["ticker"]): str(r.get("name") or r["ticker"])
             for r in sectors_df.iter_rows(named=True)
@@ -654,8 +645,7 @@ class DataStore:
                             dumps_canonical(asdict(comp.direct_outcome)) for comp in comparisons
                         ],
                         "benchmark_json": [
-                            dumps_canonical(asdict(comp.benchmark_outcome))
-                            for comp in comparisons
+                            dumps_canonical(asdict(comp.benchmark_outcome)) for comp in comparisons
                         ],
                         "paired_realized_delta": [
                             float(comp.paired_realized_wealth_delta) for comp in comparisons
@@ -971,7 +961,9 @@ class DataStore:
             clauses.append("path_id = ?")
             params.append(path_id)
         if ticker:
-            clauses.append("(UPPER(loss_ticker) = UPPER(?) OR UPPER(replacement_ticker) = UPPER(?))")
+            clauses.append(
+                "(UPPER(loss_ticker) = UPPER(?) OR UPPER(replacement_ticker) = UPPER(?))"
+            )
             params.extend([ticker, ticker])
         params.append(limit)
 

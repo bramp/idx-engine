@@ -12,4 +12,3 @@ __all__ = [
     "holding_term",
     "is_in_wash_window",
 ]
-

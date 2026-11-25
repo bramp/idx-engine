@@ -125,7 +125,6 @@ def test_pit_pull_masks_membership_applies_renames_and_reports_gaps(
     import pandas as pd
 
     from idx_engine.fetch import fetch_yfinance_dataset
-    from idx_engine.fetch.sources import price_cache as price_cache_mod
     from idx_engine.fetch.sources import yfinance as yf_mod
 
     # AAA always a member; BBB leaves on 2024-01-04 and CCC joins; FB is renamed META;
@@ -165,8 +164,8 @@ def test_pit_pull_masks_membership_applies_renames_and_reports_gaps(
                 cols[(t, field)] = vals
         return pd.DataFrame(cols, index=idx)
 
-    monkeypatch.setattr(price_cache_mod.yf, "download", fake_download)
-    monkeypatch.setattr(price_cache_mod.time, "sleep", lambda _s: None)
+    monkeypatch.setattr("idx_engine.fetch.sources.price_cache.yf.download", fake_download)
+    monkeypatch.setattr("idx_engine.fetch.sources.price_cache.time.sleep", lambda _s: None)
 
     store = DataStore(data_dir=tmp_path / "data")
     meta = fetch_yfinance_dataset(

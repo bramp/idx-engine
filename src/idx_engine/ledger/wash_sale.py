@@ -160,9 +160,7 @@ class WashSaleResolver:
         if already_matched + match_closed_qty >= closed.quantity:
             disallowed_piece = total_loss - closed.disallowed_wash_loss
         else:
-            disallowed_piece = _quantize_basis(
-                total_loss * (match_closed_qty / closed.quantity)
-            )
+            disallowed_piece = _quantize_basis(total_loss * (match_closed_qty / closed.quantity))
 
         tacked_days = max(0, closed.holding_days)
         tacked_acquired_date = actual_repl_date - timedelta(days=tacked_days)
@@ -221,9 +219,8 @@ class WashSaleResolver:
         candidates: list[TaxLot] = []
         for grp_ticker in self.group_members(closed.ticker):
             for lot in ledger.open_lots(grp_ticker):
-                if (
-                    not ledger.is_lot_wash_matched(lot.lot_id)
-                    and self._is_within_window(closed.sold_date, self._actual_buy_date(lot))
+                if not ledger.is_lot_wash_matched(lot.lot_id) and self._is_within_window(
+                    closed.sold_date, self._actual_buy_date(lot)
                 ):
                     candidates.append(lot)
         candidates.sort(key=lambda lot: (self._actual_buy_date(lot), lot.lot_id))

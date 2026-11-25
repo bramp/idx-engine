@@ -117,4 +117,3 @@ def test_terminal_liquidation_is_symmetric_on_same_year_losses_and_external_gain
     total_tax_b = s_b.net_portfolio_tax_bill + liq_b.liquidation_tax_due
     assert total_tax_a == total_tax_b
     assert liq_a.total_remaining_carryforward == liq_b.total_remaining_carryforward
-

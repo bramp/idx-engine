@@ -186,9 +186,7 @@ class SweepConfig(BaseModel):
 
         for key, values in self.grid.items():
             if not key.startswith(valid_prefixes):
-                raise ValueError(
-                    f"Sweep grid key '{key}' must start with one of {valid_prefixes}"
-                )
+                raise ValueError(f"Sweep grid key '{key}' must start with one of {valid_prefixes}")
             if not values:
                 raise ValueError(f"Sweep grid key '{key}' must have at least one value")
 

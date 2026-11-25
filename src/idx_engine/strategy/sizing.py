@@ -26,11 +26,7 @@ def compute_target_shares(
     if total_budget <= ZERO:
         return {}
 
-    valid = {
-        t: w
-        for t, w in target_weights.items()
-        if w > ZERO and prices.get(t, ZERO) > ZERO
-    }
+    valid = {t: w for t, w in target_weights.items() if w > ZERO and prices.get(t, ZERO) > ZERO}
     if not valid:
         return {}
 

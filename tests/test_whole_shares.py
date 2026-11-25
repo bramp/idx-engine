@@ -13,7 +13,7 @@ def test_whole_share_floor_plus_largest_remainder_never_exceeds_budget() -> None
     weights = {
         "AAPL": Decimal("0.40"),  # $400 @ $180 -> 2 sh ($360), rem $40
         "MSFT": Decimal("0.35"),  # $350 @ $300 -> 1 sh ($300), rem $50
-        "KO": Decimal("0.25"),    # $250 @ $60  -> 4 sh ($240), rem $10
+        "KO": Decimal("0.25"),  # $250 @ $60  -> 4 sh ($240), rem $10
     }
     prices = {
         "AAPL": Decimal("180"),
@@ -41,7 +41,7 @@ def test_stratified_sampling_preserves_exact_sector_weights() -> None:
         "MSFT": Decimal("0.20"),
         "NVDA": Decimal("0.10"),  # Tech total = 0.60
         "JPM": Decimal("0.25"),
-        "BAC": Decimal("0.15"),   # Financials total = 0.40
+        "BAC": Decimal("0.15"),  # Financials total = 0.40
     }
     sectors = {
         "AAPL": "Tech",

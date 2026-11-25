@@ -178,9 +178,7 @@ def test_tlh_does_not_sell_ineligible_wash_split_sibling() -> None:
     ledger = LotLedger(initial_cash=Decimal("1500"), default_policy="HIFO")
     resolver.attach(ledger)
 
-    original_lot, _ = ledger.buy(
-        date(2024, 1, 1), "XYZ", "Tech", Decimal("5"), Decimal("100")
-    )
+    original_lot, _ = ledger.buy(date(2024, 1, 1), "XYZ", "Tech", Decimal("5"), Decimal("100"))
     ledger.buy(date(2024, 1, 10), "XYZ", "Tech", Decimal("10"), Decimal("100"))
     ledger.sell(
         trade_date=date(2024, 1, 15),
@@ -192,9 +190,7 @@ def test_tlh_does_not_sell_ineligible_wash_split_sibling() -> None:
     )
 
     split_lots = ledger.open_lots("XYZ")
-    eligible_lot = next(
-        lot for lot in split_lots if lot.wash_sale_disallowed > Decimal("0")
-    )
+    eligible_lot = next(lot for lot in split_lots if lot.wash_sale_disallowed > Decimal("0"))
     ineligible_lot = next(lot for lot in split_lots if lot.lot_id != eligible_lot.lot_id)
     assert ledger.root_lot_id(eligible_lot.lot_id) == ledger.root_lot_id(ineligible_lot.lot_id)
     assert eligible_lot.cost_basis_total == Decimal("600")
@@ -224,7 +220,9 @@ def test_tlh_does_not_sell_ineligible_wash_split_sibling() -> None:
     assert tlh_closes[0].raw_realized_gain_loss == Decimal("-75")
 
 
-def test_substitute_mode_cash_retains_harvested_cash_during_30d_lockout_and_sector_etf_routes() -> None:
+def test_substitute_mode_cash_retains_harvested_cash_during_30d_lockout_and_sector_etf_routes() -> (
+    None
+):
     # 1. substitute_mode="cash" keeps harvested proceeds in cash during 30-day lockout
     cash_cfg = StrategyConfig(
         name="cash_sub_test",
@@ -323,5 +321,3 @@ def test_substitute_mode_cash_retains_harvested_cash_during_30d_lockout_and_sect
     )
     assert led_etf.position_quantity("KO") == Decimal("0")
     assert led_etf.position_quantity("XLP") > Decimal("0")
-
-

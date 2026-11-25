@@ -25,10 +25,7 @@ from idx_engine.sim import (
 
 def test_tracking_error_needs_two_active_returns() -> None:
     assert compute_annualized_tracking_error_bps([0.0, 0.1], [0.0, 0.0]) == 0.0
-    assert (
-        compute_annualized_tracking_error_bps([0.0, 0.1, 0.2], [0.0, 0.0, 0.0])
-        > 0.0
-    )
+    assert compute_annualized_tracking_error_bps([0.0, 0.1, 0.2], [0.0, 0.0, 0.0]) > 0.0
 
 
 def test_unfunded_withdrawal_records_only_cash_actually_withdrawn(tmp_path: Path) -> None:
@@ -60,8 +57,8 @@ def test_unfunded_withdrawal_records_only_cash_actually_withdrawn(tmp_path: Path
     )
 
     result = execute_and_persist_run(store, cfg)
-    expected_withdrawal = Decimal("10000") * Decimal(str(etf_prices[1])) / Decimal(
-        str(etf_prices[0])
+    expected_withdrawal = (
+        Decimal("10000") * Decimal(str(etf_prices[1])) / Decimal(str(etf_prices[0]))
     )
     assert result.comparisons[0].direct_outcome.net_contributions == pytest.approx(
         -expected_withdrawal, abs=Decimal("0.01")
@@ -152,9 +149,7 @@ def test_full_basket_tracks_index_tightly_and_tlh_with_external_gains_adds_liqui
         }
     )
     res_etf_nav = execute_and_persist_run(store, etf_fee_cfg)
-    bench_lots = store.query_closed_lots(
-        res_etf_nav.run_id, strategy_role="benchmark", limit=1000
-    )
+    bench_lots = store.query_closed_lots(res_etf_nav.run_id, strategy_role="benchmark", limit=1000)
     assert all(lot["reason"] == "tax_settlement" for lot in bench_lots)
     assert len(bench_lots) <= 4
     washed_lots = [lot for lot in bench_lots if lot["disallowed_wash_loss"] > 0]

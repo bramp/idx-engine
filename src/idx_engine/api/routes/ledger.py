@@ -6,7 +6,7 @@ import csv
 import io
 import json
 import re
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
@@ -17,7 +17,8 @@ router = APIRouter(prefix="/api/ledger", tags=["ledger"])
 
 
 def _get_store(request: Request) -> DataStore:
-    return request.app.state.store
+    store: DataStore = request.app.state.store
+    return store
 
 
 def _require_run_exists(store: DataStore, run_id: str) -> None:
@@ -38,7 +39,7 @@ def get_closed_lots(
     tax_year: int | None = None,
     term: Literal["ST", "LT"] | None = None,
     strategy_role: Literal["direct", "benchmark"] = "direct",
-    limit: int = Query(default=1000, ge=1, le=50000),
+    limit: Annotated[int, Query(ge=1, le=50000)] = 1000,
 ) -> list[dict[str, Any]]:
     store = _get_store(request)
     _require_run_exists(store, run_id)
@@ -59,7 +60,7 @@ def get_wash_sales(
     request: Request,
     path_id: str | None = None,
     ticker: str | None = None,
-    limit: int = Query(default=1000, ge=1, le=50000),
+    limit: Annotated[int, Query(ge=1, le=50000)] = 1000,
 ) -> list[dict[str, Any]]:
     store = _get_store(request)
     _require_run_exists(store, run_id)
@@ -75,7 +76,7 @@ def get_wash_sales(
 def export_closed_lots(
     run_id: str,
     request: Request,
-    export_format: Literal["csv", "json"] = Query(default="csv", alias="format"),
+    export_format: Annotated[Literal["csv", "json"], Query(alias="format")] = "csv",
     path_id: str | None = None,
     ticker: str | None = None,
     tax_year: int | None = None,

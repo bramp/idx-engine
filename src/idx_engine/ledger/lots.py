@@ -22,9 +22,7 @@ from idx_engine.models import (
 BASIS_QUANT = Decimal("0.00000001")
 QTY_QUANT = Decimal("0.00000001")
 
-WashSaleHook = Callable[
-    ["LotLedger", str, list[ClosedLotRecord] | TaxLot | CorporateAction], None
-]
+WashSaleHook = Callable[["LotLedger", str, list[ClosedLotRecord] | TaxLot | CorporateAction], None]
 
 
 def _quantize_basis(val: Decimal) -> Decimal:
@@ -147,7 +145,9 @@ class LotLedger:
             self._index_put(lot)
             self._lot_root_ids.setdefault(lot.lot_id, lot.lot_id)
 
-    def split_lot_for_wash_match(self, lot_id: str, matched_qty: Decimal) -> tuple[TaxLot, TaxLot | None]:
+    def split_lot_for_wash_match(
+        self, lot_id: str, matched_qty: Decimal
+    ) -> tuple[TaxLot, TaxLot | None]:
         """Split an open lot into `(matched_lot, remainder_lot)` so partial wash-sale basis
         and holding-period tacking apply strictly to the matched replacement shares.
         """

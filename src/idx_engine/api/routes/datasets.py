@@ -23,7 +23,8 @@ def _safe_float(val: Any, ndigits: int = 4) -> float:
 
 
 def _get_store(request: Request) -> DataStore:
-    return request.app.state.store
+    store: DataStore = request.app.state.store
+    return store
 
 
 @router.get("")

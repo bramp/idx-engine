@@ -36,11 +36,7 @@ def select_stratified_weights(
     """Select either full constituent weights or a sector-stratified top-K basket whose
     within-sector weights are renormalized to preserve exact GICS sector weights.
     """
-    tradable = {
-        t: w
-        for t, w in index_weights.items()
-        if w > ZERO and prices.get(t, ZERO) > ZERO
-    }
+    tradable = {t: w for t, w in index_weights.items() if w > ZERO and prices.get(t, ZERO) > ZERO}
     if not tradable:
         return {}
 
@@ -154,9 +150,7 @@ class DirectIndexStrategy:
                 ZERO, ledger.market_value(state.prices) + ledger.cash - self._accrued_fee
             )
             daily_fee = (
-                total_eq
-                * (self.cfg.direct_expense_ratio_bps / BPS_DIVISOR)
-                / TRADING_DAYS_PER_YEAR
+                total_eq * (self.cfg.direct_expense_ratio_bps / BPS_DIVISOR) / TRADING_DAYS_PER_YEAR
             )
             self._accrued_fee += daily_fee
             if ledger.cash >= self._accrued_fee:
@@ -205,15 +199,11 @@ class DirectIndexStrategy:
                 )
             return
 
-        tlh_today = (
-            self.cfg.tlh_enabled
-            and state.day_idx % self.cfg.tlh_check_frequency_days == 0
-        )
+        tlh_today = self.cfg.tlh_enabled and state.day_idx % self.cfg.tlh_check_frequency_days == 0
         mode = self.cfg.rebalance_mode
         rebalance_check_today = (
-            (mode in REBALANCE_STEP_DAYS and state.day_idx % REBALANCE_STEP_DAYS[mode] == 0)
-            or (mode == "drift_band" and state.day_idx % 5 == 0)
-        )
+            mode in REBALANCE_STEP_DAYS and state.day_idx % REBALANCE_STEP_DAYS[mode] == 0
+        ) or (mode == "drift_band" and state.day_idx % 5 == 0)
         min_cash = Decimal("50") if self.cfg.allow_fractional else Decimal("200")
 
         if not tlh_today and not rebalance_check_today and ledger.cash < min_cash:
@@ -391,21 +381,21 @@ class DirectIndexStrategy:
             # GOOG was bought Jan 2 and GOOGL was bought Jan 10, GOOG closes before GOOGL
             # (or better: if both are being harvested, neither remains open at the end).
             grp_tickers.sort(
-                key=lambda t: min(
-                    (lot.original_acquired_date or lot.acquired_date)
-                    for lot in ledger.open_lots(t)
+                key=lambda t: (
+                    min(
+                        (lot.original_acquired_date or lot.acquired_date)
+                        for lot in ledger.open_lots(t)
+                    )
+                    if ledger.open_lots(t)
+                    else state.current_date
                 )
-                if ledger.open_lots(t)
-                else state.current_date
             )
             # Temporarily suppress intra-batch sibling wash matching across dual-class legs
             # that are BOTH being closed in the exact same TLH transaction batch
             if len(grp_tickers) == 1:
                 t = grp_tickers[0]
                 planned_ids = set(planned_lot_ids_by_ticker[t])
-                live_lots = [
-                    lot for lot in ledger.open_lots(t) if lot.lot_id in planned_ids
-                ]
+                live_lots = [lot for lot in ledger.open_lots(t) if lot.lot_id in planned_ids]
                 live_ids = [lot.lot_id for lot in live_lots]
                 total_qty = sum((lot.quantity for lot in live_lots), ZERO)
                 px = state.prices.get(t, ZERO)
@@ -587,8 +577,7 @@ class DirectIndexStrategy:
                         recent_group_buy = any(
                             abs(
                                 (
-                                    trade_date
-                                    - (lot.original_acquired_date or lot.acquired_date)
+                                    trade_date - (lot.original_acquired_date or lot.acquired_date)
                                 ).days
                             )
                             <= resolver.window_days

@@ -72,9 +72,7 @@ class JobCoordinator:
         self._executor.shutdown(wait=True, cancel_futures=True)
 
     def _evict_old_terminal_jobs_unlocked(self) -> None:
-        terminal = [
-            r for r in self._jobs.values() if r.status in ("completed", "failed")
-        ]
+        terminal = [r for r in self._jobs.values() if r.status in ("completed", "failed")]
         if len(terminal) <= self._max_retained_jobs:
             return
         terminal.sort(key=lambda r: r.updated_at_iso)
@@ -91,9 +89,7 @@ class JobCoordinator:
 
     def list_jobs(self) -> list[JobStatusResponse]:
         with self._state_lock:
-            ordered = sorted(
-                self._jobs.values(), key=lambda r: r.created_at_iso, reverse=True
-            )
+            ordered = sorted(self._jobs.values(), key=lambda r: r.created_at_iso, reverse=True)
             return [r.to_schema() for r in ordered]
 
     def submit_run(self, cfg: SimulationRunConfig) -> JobStatusResponse:

@@ -51,7 +51,7 @@ def _round_cents(val: Decimal) -> Decimal:
 class _LazyDecimalRowMap(Mapping[str, Decimal]):
     """Read-only lazy Mapping[str, Decimal] over a 1D numpy float64 vector."""
 
-    __slots__ = ("_keys", "_index_map", "_row", "_cache")
+    __slots__ = ("_cache", "_index_map", "_keys", "_row")
 
     def __init__(
         self,

@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 from datetime import date
+from pathlib import Path
 
 import pandas as pd
+import pytest
 
-from idx_engine.fetch.sources import price_cache
 from idx_engine.fetch.sources.price_cache import YahooPriceCache
 
 
-def _yahoo_frame(
-    tickers: list[str], start: str, end: str, price: float = 100.0
-) -> pd.DataFrame:
+def _yahoo_frame(tickers: list[str], start: str, end: str, price: float = 100.0) -> pd.DataFrame:
     dates = pd.bdate_range(start, pd.Timestamp(end) - pd.Timedelta(days=1))
     columns = {
         (ticker, field): [price] * len(dates)
@@ -20,14 +19,18 @@ def _yahoo_frame(
     return pd.DataFrame(columns, index=dates)
 
 
-def test_price_cache_reuses_ranges_and_fetches_only_extension(tmp_path, monkeypatch) -> None:
+def test_price_cache_reuses_ranges_and_fetches_only_extension(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     calls: list[tuple[str, str]] = []
 
-    def fake_download(*, tickers: list[str], start: str, end: str, **kwargs):
+    def fake_download(
+        *, tickers: list[str], start: str, end: str, **kwargs: object
+    ) -> pd.DataFrame:
         calls.append((start, end))
         return _yahoo_frame(tickers, start, end)
 
-    monkeypatch.setattr(price_cache.yf, "download", fake_download)
+    monkeypatch.setattr("idx_engine.fetch.sources.price_cache.yf.download", fake_download)
     cache = YahooPriceCache(tmp_path / "yfinance", sleep=lambda _: None)
     start, first_end, extended_end = date(2024, 1, 2), date(2024, 1, 10), date(2024, 1, 17)
 
@@ -47,18 +50,22 @@ def test_price_cache_reuses_ranges_and_fetches_only_extension(tmp_path, monkeypa
     assert cache.coverage("AAA") == (start, extended_end, len(pd.bdate_range(start, extended_end)))
 
 
-def test_price_cache_retries_symbols_with_no_cached_data(tmp_path, monkeypatch) -> None:
+def test_price_cache_retries_symbols_with_no_cached_data(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     calls: list[str] = []
     return_missing = False
 
-    def fake_download(*, tickers: list[str], start: str, end: str, **kwargs):
+    def fake_download(
+        *, tickers: list[str], start: str, end: str, **kwargs: object
+    ) -> pd.DataFrame:
         calls.extend(tickers)
         available = [ticker for ticker in tickers if ticker != "BBB" or return_missing]
         if not available:
             return pd.DataFrame()
         return _yahoo_frame(available, start, end)
 
-    monkeypatch.setattr(price_cache.yf, "download", fake_download)
+    monkeypatch.setattr("idx_engine.fetch.sources.price_cache.yf.download", fake_download)
     cache = YahooPriceCache(
         tmp_path / "yfinance",
         chunk_size=1,
@@ -81,17 +88,21 @@ def test_price_cache_retries_symbols_with_no_cached_data(tmp_path, monkeypatch) 
     assert cache.coverage("BBB") == (start, end, len(pd.bdate_range(start, end)))
 
 
-def test_corrupt_price_cache_is_invalidated_and_refetched(tmp_path, monkeypatch) -> None:
+def test_corrupt_price_cache_is_invalidated_and_refetched(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     calls = 0
 
-    def fake_download(*, tickers: list[str], start: str, end: str, **kwargs):
+    def fake_download(
+        *, tickers: list[str], start: str, end: str, **kwargs: object
+    ) -> pd.DataFrame:
         nonlocal calls
         calls += 1
         if calls == 2:
             return pd.DataFrame()
         return _yahoo_frame(tickers, start, end)
 
-    monkeypatch.setattr(price_cache.yf, "download", fake_download)
+    monkeypatch.setattr("idx_engine.fetch.sources.price_cache.yf.download", fake_download)
     cache_dir = tmp_path / "yfinance"
     start, end = date(2024, 1, 2), date(2024, 1, 5)
     cache = YahooPriceCache(cache_dir, max_attempts=1, sleep=lambda _: None)
@@ -108,15 +119,19 @@ def test_corrupt_price_cache_is_invalidated_and_refetched(tmp_path, monkeypatch)
     assert recovered_cache.read("AAA") is not None
 
 
-def test_negative_cache_survives_load_across_fresh_instances(tmp_path, monkeypatch) -> None:
+def test_negative_cache_survives_load_across_fresh_instances(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     calls: list[str] = []
 
-    def fake_download(*, tickers: list[str], start: str, end: str, **kwargs):
+    def fake_download(
+        *, tickers: list[str], start: str, end: str, **kwargs: object
+    ) -> pd.DataFrame:
         calls.extend(tickers)
         available = [t for t in tickers if t != "DELISTED"]
         return _yahoo_frame(available, start, end) if available else pd.DataFrame()
 
-    monkeypatch.setattr(price_cache.yf, "download", fake_download)
+    monkeypatch.setattr("idx_engine.fetch.sources.price_cache.yf.download", fake_download)
     cache_dir = tmp_path / "yfinance"
     start, end = date(2024, 1, 2), date(2024, 1, 5)
 

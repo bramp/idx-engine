@@ -140,18 +140,14 @@ def run_parameter_sweep_on_dataset(
     total_points = len(coord_list)
 
     for pt_idx, coord in enumerate(coord_list):
-        overrides = {
-            grid_keys[axis]: grid_values[axis][val_i]
-            for axis, val_i in enumerate(coord)
-        }
+        overrides = {grid_keys[axis]: grid_values[axis][val_i] for axis, val_i in enumerate(coord)}
         run_cfg = _apply_dot_overrides(base_dict, overrides)
         is_cfg = run_cfg.model_copy(deep=True)
         if oos_dataset is not None:
             is_cfg.dataset.start_date = is_dataset.metadata.start_date
             is_cfg.dataset.end_date = is_dataset.metadata.end_date
-        if (
-            is_cfg.path.mode != "block_bootstrap"
-            and is_cfg.path.horizon_days > len(is_dataset.trading_dates)
+        if is_cfg.path.mode != "block_bootstrap" and is_cfg.path.horizon_days > len(
+            is_dataset.trading_dates
         ):
             is_cfg.path.horizon_days = len(is_dataset.trading_dates)
 
@@ -161,9 +157,8 @@ def run_parameter_sweep_on_dataset(
             oos_cfg = run_cfg.model_copy(deep=True)
             oos_cfg.dataset.start_date = oos_dataset.metadata.start_date
             oos_cfg.dataset.end_date = oos_dataset.metadata.end_date
-            if (
-                oos_cfg.path.mode != "block_bootstrap"
-                and oos_cfg.path.horizon_days > len(oos_dataset.trading_dates)
+            if oos_cfg.path.mode != "block_bootstrap" and oos_cfg.path.horizon_days > len(
+                oos_dataset.trading_dates
             ):
                 oos_cfg.path.horizon_days = len(oos_dataset.trading_dates)
             # Distinct deterministic OOS seed so bootstrap paths don't reuse IS seed draws
