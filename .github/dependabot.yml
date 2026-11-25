@@ -6,11 +6,9 @@ updates:
       interval: "weekly"
       day: "friday"
     open-pull-requests-limit: 10
+    # github-actions only supports default-days (no semver-*-days).
     cooldown:
       default-days: 7
-      semver-major-days: 30
-      semver-minor-days: 14
-      semver-patch-days: 3
     groups:
       actions-minor-patch:
         update-types:
